@@ -10,6 +10,7 @@ from langchain_core.prompts import (
     PromptTemplate,
     SystemMessagePromptTemplate,
 )
+from langchain.agents.agent_toolkits import create_retriever_tool
 from langchain_community.vectorstores import Annoy
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 from langchain_openai import OpenAIEmbeddings
@@ -18,6 +19,9 @@ from langchain_community.utilities import SQLDatabase
 import chainlit as cl
 from langchain_community.agent_toolkits import create_sql_agent, SQLDatabaseToolkit
 from langchain_openai import ChatOpenAI
+import ast
+import re
+import json
 
 load_dotenv(find_dotenv())
 db = SQLDatabase.from_uri("sqlite:///Chinook.db")
@@ -109,8 +113,25 @@ full_prompt = ChatPromptTemplate.from_messages(
 
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 
-
-
+# def query_as_list(db, query):
+#     res = db.run(query)
+#     res = [el for sub in ast.literal_eval(res) for el in sub if el]
+#     res = [re.sub(r"\b\d+\b", "", string).strip() for string in res]
+#     return list(set(res))
+#
+#
+# artists = query_as_list(db, "SELECT Name FROM Artist")
+# albums = query_as_list(db, "SELECT Title FROM Album")
+#
+# vector_db = Annoy.from_texts(artists + albums, OpenAIEmbeddings())
+# retriever = vector_db.as_retriever(search_kwargs={"k": 5})
+# description = """Use to look up values to filter on. Input is an approximate spelling of the proper noun, output is \
+# valid proper nouns. Use the noun most similar to the search."""
+# retriever_tool = create_retriever_tool(
+#     retriever,
+#     name="search_proper_nouns",
+#     description=description,
+# )
 
 @cl.on_chat_start
 async def on_chat_start():
@@ -152,7 +173,9 @@ async def on_message(message: cl.Message):
 
     response = agent.invoke(input=msg.content)
 
+    response_str = json.dumps(response.get("output"))[1:-1]
+
     # Send a response back to the user
     await cl.Message(
-        content=response,
+        content=response_str,
     ).send()
