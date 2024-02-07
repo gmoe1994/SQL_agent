@@ -100,41 +100,59 @@ few_shot_prompt = FewShotPromptTemplate(
 )
 
 full_prompt = ChatPromptTemplate.from_messages(
-        [
-            SystemMessagePromptTemplate(prompt=few_shot_prompt),
-            ("human", "{input}"),
-            MessagesPlaceholder("agent_scratchpad"),
-        ]
-    )
+    [
+        SystemMessagePromptTemplate(prompt=few_shot_prompt),
+        ("human", "{input}"),
+        MessagesPlaceholder("agent_scratchpad"),
+    ]
+)
 
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 
-agent = create_sql_agent(
-    llm=llm,
-    db=db,
-    prompt=full_prompt,
-    verbose=True,
-    agent_type="openai-tools",
-)
+
+
 
 @cl.on_chat_start
 async def on_chat_start():
     # model = ChatOpenAI(streaming=True)
+
+    agent = create_sql_agent(
+        llm=llm,
+        db=db,
+        prompt=full_prompt,
+        verbose=True,
+        agent_type="openai-tools",
+    )
+
     cl.user_session.set("runnable", agent)
 
 
+# @cl.on_message
+# async def on_message(message: cl.Message):
+#     runnable = cl.user_session.get("runnable")  # type: Runnable
+#
+#     msg = cl.Message(content="")
+#
+#     async for chunk in runnable.astream(
+#             {
+#                 "input": message.content
+#             },
+#             config=RunnableConfig(callbacks=[cl.LangchainCallbackHandler()]),
+#     ):
+#         await msg.stream_token(chunk)
+#
+#     await msg.send()
+
 @cl.on_message
 async def on_message(message: cl.Message):
-    runnable = cl.user_session.get("runnable")  # type: Runnable
+    # Run model
+    msg = cl.Message(content=message.content)
 
-    msg = cl.Message(content="")
+    agent = cl.user_session.get("runnable")  # type: Runnable
 
-    async for chunk in runnable.astream(
-            {
-                "input": message.content
-            },
-            config=RunnableConfig(callbacks=[cl.LangchainCallbackHandler()]),
-    ):
-        await msg.stream_token(chunk)
+    response = agent.invoke(input=msg.content)
 
-    await msg.send()
+    # Send a response back to the user
+    await cl.Message(
+        content=response,
+    ).send()
