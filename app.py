@@ -22,54 +22,32 @@ from langchain_openai import ChatOpenAI
 import ast
 import re
 import json
+import datetime
 
 load_dotenv(find_dotenv())
-db = SQLDatabase.from_uri("sqlite:///Chinook.db")
+db = SQLDatabase.from_uri("sqlite:///TriggTest.db")
+now = datetime.datetime.now()
 
 examples = [
-    {"input": "List all artists.", "query": "SELECT * FROM Artist;"},
+    {"input": "List all coupons.", "query": "SELECT * FROM coupons;"},
+    {"input": "List all customers.", "query": "SELECT * FROM customers;"},
+    {"input": "List all campaigns.", "query": "SELECT * FROM bonusCampaign;"},
+
     {
-        "input": "Find all albums for the artist 'AC/DC'.",
-        "query": "SELECT * FROM Album WHERE ArtistId = (SELECT ArtistId FROM Artist WHERE Name = 'AC/DC');",
+        "input": "Which coupons are active?",
+        "query": "SELECT name FROM coupons WHERE validFrom <= datetime(now) =< validTo;",
     },
     {
-        "input": "List all tracks in the 'Rock' genre.",
-        "query": "SELECT * FROM Track WHERE GenreId = (SELECT GenreId FROM Genre WHERE Name = 'Rock');",
+        "input": "how long is jubilee offer coupon active?",
+        "query": "SELECT julianday(validTo) - julianday(validFrom) AS Duration FROM coupons WHERE name = 'jubilee offer';",
     },
     {
-        "input": "Find the total duration of all tracks.",
-        "query": "SELECT SUM(Milliseconds) FROM Track;",
-    },
-    {
-        "input": "List all customers from Canada.",
-        "query": "SELECT * FROM Customer WHERE Country = 'Canada';",
-    },
-    {
-        "input": "How many tracks are there in the album with ID 5?",
-        "query": "SELECT COUNT(*) FROM Track WHERE AlbumId = 5;",
-    },
-    {
-        "input": "Find the total number of invoices.",
-        "query": "SELECT COUNT(*) FROM Invoice;",
-    },
-    {
-        "input": "List all tracks that are longer than 5 minutes.",
-        "query": "SELECT * FROM Track WHERE Milliseconds > 300000;",
-    },
-    {
-        "input": "Who are the top 5 customers by total purchase?",
-        "query": "SELECT CustomerId, SUM(Total) AS TotalPurchase FROM Invoice GROUP BY CustomerId ORDER BY TotalPurchase DESC LIMIT 5;",
-    },
-    {
-        "input": "Which albums are from the year 2000?",
-        "query": "SELECT * FROM Album WHERE strftime('%Y', ReleaseDate) = '2000';",
-    },
-    {
-        "input": "How many employees are there",
-        "query": 'SELECT COUNT(*) FROM "Employee"',
+        "input": "How many coupons are there",
+        "query": 'SELECT COUNT(*) FROM "coupons"',
     },
 ]
 
+# Consider changing to Milvus vector database, if the examples are getting very large.
 example_selector = SemanticSimilarityExampleSelector.from_examples(
     examples,
     OpenAIEmbeddings(),
@@ -113,25 +91,27 @@ full_prompt = ChatPromptTemplate.from_messages(
 
 llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 
-# def query_as_list(db, query):
-#     res = db.run(query)
-#     res = [el for sub in ast.literal_eval(res) for el in sub if el]
-#     res = [re.sub(r"\b\d+\b", "", string).strip() for string in res]
-#     return list(set(res))
-#
-#
-# artists = query_as_list(db, "SELECT Name FROM Artist")
-# albums = query_as_list(db, "SELECT Title FROM Album")
-#
-# vector_db = Annoy.from_texts(artists + albums, OpenAIEmbeddings())
-# retriever = vector_db.as_retriever(search_kwargs={"k": 5})
-# description = """Use to look up values to filter on. Input is an approximate spelling of the proper noun, output is \
-# valid proper nouns. Use the noun most similar to the search."""
-# retriever_tool = create_retriever_tool(
-#     retriever,
-#     name="search_proper_nouns",
-#     description=description,
-# )
+
+def query_as_list(db, query):
+    res = db.run(query)
+    res = [el for sub in ast.literal_eval(res) for el in sub if el]
+    res = [re.sub(r"\b\d+\b", "", string).strip() for string in res]
+    return list(set(res))
+
+
+coupons = query_as_list(db, "SELECT name FROM coupons")
+campaigns = query_as_list(db, "SELECT name FROM bonusCampaign")
+
+vector_db = Annoy.from_texts(campaigns + coupons, OpenAIEmbeddings())
+retriever = vector_db.as_retriever(search_kwargs={"k": 5})
+description = """Use to look up values to filter on. Input is an approximate spelling of the proper noun, output is \
+valid proper nouns. Use the noun most similar to the search."""
+retriever_tool = create_retriever_tool(
+    retriever,
+    name="search_proper_nouns",
+    description=description,
+)
+
 
 @cl.on_chat_start
 async def on_chat_start():
@@ -148,22 +128,6 @@ async def on_chat_start():
     cl.user_session.set("runnable", agent)
 
 
-# @cl.on_message
-# async def on_message(message: cl.Message):
-#     runnable = cl.user_session.get("runnable")  # type: Runnable
-#
-#     msg = cl.Message(content="")
-#
-#     async for chunk in runnable.astream(
-#             {
-#                 "input": message.content
-#             },
-#             config=RunnableConfig(callbacks=[cl.LangchainCallbackHandler()]),
-#     ):
-#         await msg.stream_token(chunk)
-#
-#     await msg.send()
-
 @cl.on_message
 async def on_message(message: cl.Message):
     # Run model
@@ -179,3 +143,5 @@ async def on_message(message: cl.Message):
     await cl.Message(
         content=response_str,
     ).send()
+
+# chainlit run app.py -w
