@@ -151,11 +151,13 @@ async def on_message(message: cl.Message):
 
     response = agent.invoke(input=msg.content)
 
-    response_str = json.dumps(response.get("output"))[1:-1]
+    print(response)
+
+    response_str = json.dumps(response.get("output"), ensure_ascii=False).encode('utf8')[1:-1]
 
     # Send a response back to the user
     await cl.Message(
-        content=response_str,
+        content=response_str.decode(),
     ).send()
 
 # chainlit run app.py -w
