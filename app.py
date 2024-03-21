@@ -24,10 +24,12 @@ import re
 import json
 import datetime
 
+
 load_dotenv(find_dotenv())
 db = SQLDatabase.from_uri("sqlite:///TriggTest.db")
 now = datetime.datetime.now()
 
+#TODO: Run test to check if the querys are correct when there's data to test with.
 examples = [
     {"input": "List all coupons.", "query": "SELECT * FROM coupons;"},
     {"input": "List all customers.", "query": "SELECT * FROM customers;"},
@@ -35,14 +37,26 @@ examples = [
 
     {
         "input": "Which coupons are active?",
-        "query": "SELECT name FROM coupons WHERE validFrom <= datetime(now) =< validTo;",
+        "query": "SELECT name FROM coupons WHERE validFrom <= datetime(now) =< validTo;"
+    },
+    {
+        "input": "Which campaign is the most popular?",
+        "query": 'SELECT TOP 1 bc.id, count(*) FROM couponRedeem cr INNER JOIN coupons c ON cr.idCoupon = c.id INNER JOIN bonusCampaign bc ON c.idCampaign = bc.id GROUP BY bc.id ORDER BY count(*) DESC'
+    },
+    {
+        "input": "How many jubilee offer coupons has been redeemed?",
+        "query": "SELECT COUNT(*) FROM couponRedeem INNER JOIN coupons ON couponRedeem.idCoupon = coupons.id WHERE coupons.name = 'Jubilee offer';"
+    },
+    {
+        "input": "How many customers has redeemed the jubilee offer coupon?",
+        "query": "SELECT COUNT(*) FROM couponRedeem INNER JOIN customerCoupon ON customerCoupon.idCoupon = couponReedem.idCoupon WHERE customerCoupon.idCoupon IN (SELECT name FROM coupons WHERE name ='Jubilee offer');",
     },
     {
         "input": "how long is jubilee offer coupon active?",
         "query": "SELECT julianday(validTo) - julianday(validFrom) AS Duration FROM coupons WHERE name = 'jubilee offer';",
     },
     {
-        "input": "How many coupons are there",
+        "input": "How many coupons are there?",
         "query": 'SELECT COUNT(*) FROM "coupons"',
     },
 ]
