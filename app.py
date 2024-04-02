@@ -35,11 +35,16 @@ examples = [
     {"input": "List all customers.", "query": "SELECT * FROM customers;"},
     {"input": "List all campaigns.", "query": "SELECT * FROM bonusCampaign;"},
     {"input": "List all transactions.", "query": "SELECT * FROM D000000_TransactionItems;"},
-    {"input": "List all products related to a coupon.", "query": "SELECT * FROM CouponProducts;"},
+    {"input": "List all products related to a coupon.", "query": "SELECT * FROM couponProducts;"},
+    {"input": "List all affiliates.", "query": "SELECT * FROM affiliate;"},
 
     {
         "input": "Which coupons are active?",
         "query": "SELECT name FROM coupons WHERE validFrom <= datetime(now) =< validTo;"
+    },
+    {
+        "input": "Which coupons has an increase in value?",
+        "query": "SELECT name FROM coupons INNER JOIN couponIncreases ON coupons.id = couponIncreases.idCoupon;"
     },
     {
         "input": "Which campaign is the most popular?",
@@ -83,7 +88,7 @@ You MUST double check your query before executing it. If you get an error while 
 
 DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
 
-If the question does not seem related to the database, just return "I don't know, try asking the question in another way" as the answer.
+If you cannot find the correct column name, retrieve the schema to find the correct column names for the query.
 
 Here are some examples of user inputs and their corresponding SQL queries:"""
 
@@ -117,8 +122,9 @@ def query_as_list(db, query):
 
 coupons = query_as_list(db, "SELECT name FROM coupons")
 campaigns = query_as_list(db, "SELECT name FROM bonusCampaign")
+idCoupons = query_as_list(db, "SELECT id FROM coupons")
 
-vector_db = Annoy.from_texts(campaigns + coupons, OpenAIEmbeddings())
+vector_db = Annoy.from_texts(campaigns + coupons + idCoupons, OpenAIEmbeddings())
 retriever = vector_db.as_retriever(search_kwargs={"k": 5})
 description = """Use to look up values to filter on. Input is an approximate spelling of the proper noun, output is \
 valid proper nouns. Use the noun most similar to the search."""
@@ -137,6 +143,7 @@ async def on_chat_start():
         llm=llm,
         db=db,
         prompt=full_prompt,
+        extra_tools=[retriever_tool],
         verbose=True,
         agent_type="openai-tools",
     )
