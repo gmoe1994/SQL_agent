@@ -26,7 +26,7 @@ import datetime
 
 
 load_dotenv(find_dotenv())
-db = SQLDatabase.from_uri("sqlite:///TriggTest.db")
+db = SQLDatabase.from_uri("sqlite:///TriggDev.db")
 now = datetime.datetime.now()
 
 #TODO: Run test to check if the querys are correct when there's data to test with.
@@ -34,6 +34,8 @@ examples = [
     {"input": "List all coupons.", "query": "SELECT * FROM coupons;"},
     {"input": "List all customers.", "query": "SELECT * FROM customers;"},
     {"input": "List all campaigns.", "query": "SELECT * FROM bonusCampaign;"},
+    {"input": "List all transactions.", "query": "SELECT * FROM D000000_TransactionItems;"},
+    {"input": "List all products related to a coupon.", "query": "SELECT * FROM CouponProducts;"},
 
     {
         "input": "Which coupons are active?",
@@ -81,7 +83,7 @@ You MUST double check your query before executing it. If you get an error while 
 
 DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
 
-If the question does not seem related to the database, just return "I don't know" as the answer.
+If the question does not seem related to the database, just return "I don't know, try asking the question in another way" as the answer.
 
 Here are some examples of user inputs and their corresponding SQL queries:"""
 
