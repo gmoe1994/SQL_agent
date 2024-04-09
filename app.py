@@ -37,6 +37,7 @@ examples = [
     {"input": "List all transactions.", "query": "SELECT * FROM D000000_TransactionItems;"},
     {"input": "List all products related to a coupon.", "query": "SELECT * FROM couponProducts;"},
     {"input": "List all affiliates.", "query": "SELECT * FROM affiliate;"},
+    {"input": "List all coupon redeems.", "query": "SELECT * FROM couponRedeem;"},
 
     {
         "input": "Which coupons are active?",
@@ -89,6 +90,8 @@ You MUST double check your query before executing it. If you get an error while 
 DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
 
 If you cannot find the correct column name, retrieve the schema to find the correct column names for the query.
+
+If the result seems to be incorrect just answer i don't know.
 
 Here are some examples of user inputs and their corresponding SQL queries:"""
 
@@ -169,4 +172,4 @@ async def on_message(message: cl.Message):
         content=response_str.decode(),
     ).send()
 
-# chainlit run app.py -w
+# chainlit run app.py -h
