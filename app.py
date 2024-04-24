@@ -24,21 +24,31 @@ import re
 import json
 import datetime
 
-
 load_dotenv(find_dotenv())
 db = SQLDatabase.from_uri("sqlite:///TriggDev.db")
 now = datetime.datetime.now()
 
-#TODO: Run test to check if the querys are correct when there's data to test with.
+# TODO: Run test to check if the querys are correct when there's data to test with.
+
+# Produce examples in norwegian?
 examples = [
     {"input": "List all coupons.", "query": "SELECT * FROM coupons;"},
     {"input": "List all customers.", "query": "SELECT * FROM customers;"},
     {"input": "List all campaigns.", "query": "SELECT * FROM bonusCampaign;"},
-    {"input": "List all transactions.", "query": "SELECT * FROM D000000_TransactionItems;"},
+    {"input": "List all transaction items.", "query": "SELECT * FROM D000000_TransactionItems;"},
+    {"input": "List all transactions/receipts.", "query": "SELECT * FROM D000000_TransactionHeaders;"},
     {"input": "List all products related to a coupon.", "query": "SELECT * FROM couponProducts;"},
     {"input": "List all affiliates.", "query": "SELECT * FROM affiliate;"},
     {"input": "List all coupon redeems.", "query": "SELECT * FROM couponRedeem;"},
 
+    {
+        "input": "which bonus rule/s exists on the campaign with the id: E1D9305C-768A-4BBB-A3D5-3E2E9A6D7822?",
+        "query": "SELECT name FROM bonusRule WHERE idBonusCampaign = 'E1D9305C-768A-4BBB-A3D5-3E2E9A6D7822';"
+    },
+    {
+        "input": "Average number of coupons redeemed per customer.",
+        "query": "SELECT AVG(count) FROM (SELECT COUNT(*) as count, idCustomer FROM couponRedeem GROUP BY idCustomer);",
+    },
     {
         "input": "Which coupons are active?",
         "query": "SELECT name FROM coupons WHERE validFrom <= datetime(now) =< validTo;"
@@ -78,6 +88,7 @@ example_selector = SemanticSimilarityExampleSelector.from_examples(
     input_keys=["input"],
 )
 
+# Retrieve the schema of the database, and use it along with the examples of input and their corresponding queries to generate the most accurate SQL queries.
 system_prefix = """You are an agent designed to interact with a SQL database.
 Given an input question, create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
 Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results.
@@ -89,7 +100,7 @@ You MUST double check your query before executing it. If you get an error while 
 
 DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
 
-If you cannot find the correct column name, retrieve the schema to find the correct column names for the query.
+Retrieve the schema of the database, and use it along with the examples of input and their corresponding queries to generate the most accurate SQL queries.
 
 If the result seems to be incorrect just answer i don't know.
 
@@ -165,7 +176,9 @@ async def on_message(message: cl.Message):
 
     print(response)
 
-    response_str = json.dumps(response.get("output"), ensure_ascii=False).encode('utf8')[1:-1]
+    response_str = json.dumps(response.get("output"), ensure_ascii=False)
+    response_str = response_str.replace("\\n", "\n")
+    response_str = response_str.encode('utf8')[1:-1]
 
     # Send a response back to the user
     await cl.Message(
